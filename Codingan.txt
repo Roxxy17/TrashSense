@@ -1,0 +1,138 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+#include <DHT.h>
+#include <MQ2.h>
+
+LiquidCrystal_I2C lcd(0x20, 16, 2);
+Servo myservo;
+
+#define DHTPIN 2
+#define DHTTYPE DHT22
+
+DHT dht(DHTPIN, DHTTYPE);
+MQ2 mq2(A0);
+
+#define pinTrig 7
+#define pinEcho 6
+#define pinTrig2 5
+#define pinEcho2 4
+#define ledHijau 8
+#define ledMerah 9
+#define buzzer 10
+
+
+const int threshold = 50; // Ambil nilai ambang batas untuk membedakan organik dan anorganik
+const int gasThreshold = 100; // Ambil nilai ambang batas untuk mendeteksi gas tertentu
+
+void bukatutup() {
+   long duration, distance;
+  digitalWrite(pinTrig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pinTrig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(pinTrig, LOW);
+  duration = pulseIn(pinEcho, HIGH);
+  distance = duration / 58.2;
+  if (distance < 301) {
+    myservo.write(90);
+    delay(100);
+  }
+  else {
+    myservo.write(0);
+    delay(1000);
+  }
+}
+
+void ledbuka() {
+  digitalWrite(buzzer, HIGH);
+  digitalWrite(ledHijau, HIGH);
+  digitalWrite(ledMerah, LOW);
+  delay(300);
+  digitalWrite(ledHijau, LOW);
+  digitalWrite(ledMerah, LOW);
+  delay(300);
+  digitalWrite(ledHijau, HIGH);
+  digitalWrite(ledMerah, LOW);
+  delay(300);
+}
+
+void ledtutup() {
+  digitalWrite(buzzer, HIGH);
+  digitalWrite(ledHijau, LOW);
+  digitalWrite(ledMerah, HIGH);
+  delay(300);
+  digitalWrite(buzzer, HIGH);
+  digitalWrite(ledHijau, LOW);
+  digitalWrite(ledMerah, LOW);
+  delay(300);
+  digitalWrite(buzzer, HIGH);
+  digitalWrite(ledHijau, LOW);
+  digitalWrite(ledMerah, HIGH);
+  delay(300);
+  digitalWrite(buzzer, HIGH);
+  digitalWrite(ledHijau, HIGH);
+  digitalWrite(ledMerah, LOW);
+  delay(300);
+  digitalWrite(buzzer, HIGH);
+  digitalWrite(ledHijau, LOW);
+  digitalWrite(ledMerah, HIGH);
+  delay(300);
+}
+
+void setup() {
+  Serial.begin(9600);
+  lcd.begin(16, 2);
+  pinMode(pinTrig, OUTPUT);
+  pinMode(pinEcho, INPUT);
+  pinMode(pinTrig2, OUTPUT);
+  pinMode(pinEcho2, INPUT);
+  pinMode(ledHijau, OUTPUT);
+  pinMode(ledMerah, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  myservo.attach(3);
+  dht.begin();
+  mq2.begin();
+}
+
+void loop() {
+  long duration2, distance2;
+  digitalWrite(pinTrig2, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pinTrig2, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(pinTrig2, LOW);
+  duration2 = pulseIn(pinEcho2, HIGH);
+  distance2 = duration2 / 59.2;
+
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print(" - BINSENSE -");
+  lcd.setCursor(0, 1);
+  lcd.print(" -SYSTEM READY-");
+  delay(4000);
+
+  if (distance2 > 15) {
+    bukatutup();
+
+    // Baca nilai kelembapan
+    float humidity = dht.readHumidity();
+
+    // Baca nilai gas
+    float gasValue = mq2.readLPG();
+
+    // Pemilahan sampah berdasarkan kelembapan dan gas
+    if (humidity > threshold && gasValue < gasThreshold) {
+      // Sampah organik
+      ledbuka();
+      // Lakukan tindakan tambahan untuk sampah organik
+    } else {
+      // Sampah anorganik
+      ledtutup();
+      // Lakukan tindakan tambahan untuk sampah anorganik
+    }
+  } else {
+    bukatutup();
+    ledtutup();
+  }
+}
